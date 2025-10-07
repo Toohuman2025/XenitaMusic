@@ -29,28 +29,35 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
     
-    - name: Accept Android Licenses
+    - name: Accept Android Licenses & Install Build Tools
       run: |
         yes | sdkmanager --licenses || true
-        sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.1"
+        yes | sdkmanager --update
+        yes | sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+        export ANDROID_HOME=$HOME/.android
+        export PATH=$PATH:$ANDROID_HOME/emulator:$ANDROID_HOME/tools:$ANDROID_HOME/tools/bin:$ANDROID_HOME/platform-tools
     
-    - name: Install Buildozer
+    - name: Install Buildozer dependencies
       run: |
+        sudo apt-get update
+        sudo apt-get install -y zip unzip git openjdk-17-jdk
         pip install --upgrade pip
-        pip install buildozer
-        pip install cython==0.29.33
+        pip install buildozer cython==0.29.33
     
-    - name: Make gradlew executable
-      run: chmod +x gradlew || true
+    - name: Initialize Buildozer (if not exists)
+      run: |
+        if [ ! -f buildozer.spec ]; then
+          buildozer init
+        fi
     
-    - name: Build with Buildozer
+    - name: Build APK with Buildozer
       run: |
         buildozer android debug
     
     - name: Find APK
       id: find_apk
       run: |
-        APK_PATH=$(find . -name "*.apk" | head -n 1)
+        APK_PATH=$(find . -type f -name "*.apk" | head -n 1)
         if [ -z "$APK_PATH" ]; then
           echo "No APK found!"
           exit 1
@@ -61,5 +68,5 @@ jobs:
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: xenitamusic-apk
+        name: toohuman2025-apk
         path: ${{ steps.find_apk.outputs.apk_path }}
