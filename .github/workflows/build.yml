@@ -1,3 +1,4 @@
+
 name: Build APK
 
 on:
@@ -9,67 +10,101 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 120
-
+    
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-
+    
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
-
+    
     - name: Install Java
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
         java-version: '17'
-
+    
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
-
-    - name: Accept Android Licenses (FIX)
+    
+    - name: Accept Android Licenses and Install Tools
       run: |
-        mkdir -p $ANDROID_HOME/licenses
-        echo "8933bad161af4178b1185d1a37fbf41ea5269c5b" > $ANDROID_HOME/licenses/android-sdk-license
-        echo "d56f5187479451eabf01fb78af6dfcb131a6481e" >> $ANDROID_HOME/licenses/android-sdk-license
-        echo "24333f8a63b6825ea9c55c3d7b6d053c577a2d6a" >> $ANDROID_HOME/licenses/android-sdk-license
-        sdkmanager --install "platform-tools" "platforms;android-33" "build-tools;33.0.1" "cmdline-tools;8.0"
-
-    - name: Set Environment Variables
+        yes | sdkmanager --licenses || true
+        sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.1" "ndk;25.2.9519653"
+    
+    - name: Set Android Environment Variables
       run: |
-        echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
-        echo "ANDROID_NDK_HOME=$ANDROID_NDK_HOME" >> $GITHUB_ENV
-        echo "$ANDROID_HOME/tools" >> $GITHUB_PATH
-        echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
-
-    - name: Install Buildozer and Dependencies
+        echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> $GITHUB_ENV
+        echo "ANDROID_SDK_ROOT=/usr/local/lib/android/sdk" >> $GITHUB_ENV
+        echo "ANDROID_NDK_HOME=/usr/local/lib/android/sdk/ndk/25.2.9519653" >> $GITHUB_ENV
+        echo "/usr/local/lib/android/sdk/platform-tools" >> $GITHUB_PATH
+        echo "/usr/local/lib/android/sdk/build-tools/33.0.1" >> $GITHUB_PATH
+    
+    - name: Install Buildozer Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y git zip unzip openjdk-17-jdk wget libffi-dev libssl-dev
+        sudo apt-get install -y build-essential libltdl-dev libffi-dev libssl-dev python3-dev
+        sudo apt-get install -y zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5
+        sudo apt-get install -y cmake automake autoconf libtool pkg-config
+    
+    - name: Install Buildozer
       run: |
         pip install --upgrade pip
-        pip install buildozer cython==0.29.33
-        pip install kivy==2.1.0  # Asegúrate de que la versión sea compatible
+        pip install buildozer
+        pip install cython==0.29.33
+    
+    - name: Create Buildozer Spec
+      run: |
+        cat > buildozer.spec << 'EOF'
+        [app]
+        title = Xenita Music Player
+        package.name = xenitamusic
+        package.domain = com.toohuman
+        source.dir = .
+        source.include_exts = py,png,jpg,jpeg,kv,atlas,ttf,mp3,ogg,wav,flac,m4a
+        version = 1.0.0
+        requirements = python3,kivy==2.2.1,android,pyjnius
+        orientation = portrait
+        fullscreen = 0
+        android.permissions = INTERNET,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE,ACCESS_NETWORK_STATE,WAKE_LOCK
+        android.minapi = 21
+        android.api = 33
+        android.ndk = 25.2.9519653
+        android.archs = arm64-v8a
+        android.accept_sdk_license = True
+        android.skip_update = True
+        android.sdk_path = /usr/local/lib/android/sdk
+        android.ndk_path = /usr/local/lib/android/sdk/ndk/25.2.9519653
+        log_level = 2
+        warn_on_root = 0
 
+        [buildozer]
+        log_level = 2
+        build_dir = ./.buildozer
+        bin_dir = ./bin
+        EOF
+    
     - name: Build with Buildozer
       run: |
-        buildozer android debug
-      env:
-        ANDROID_HOME: ${{ env.ANDROID_HOME }}
-        ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
-
+        buildozer -v android debug
+    
     - name: Find APK
       id: find_apk
       run: |
         APK_PATH=$(find . -name "*.apk" | head -n 1)
         if [ -z "$APK_PATH" ]; then
           echo "No APK found!"
+          ls -R bin/ || echo "No bin directory"
           exit 1
         fi
         echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
         echo "Found APK: $APK_PATH"
-
+    
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: xenitamusic-apk
         path: ${{ steps.find_apk.outputs.apk_path }}
-
