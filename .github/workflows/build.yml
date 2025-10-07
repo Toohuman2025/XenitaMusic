@@ -13,42 +13,54 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v3
-    
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.11'
-    
+
     - name: Install Buildozer
       run: |
         pip install --upgrade pip
         pip install buildozer
         pip install cython==0.29.33
-    
+
     - name: Install Android dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y openjdk-17-jdk
-    
-    - name: Accept Android licenses
+        sudo apt-get install -y openjdk-17-jdk wget unzip zip \
+        libffi-dev libssl-dev zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5
+
+    - name: Setup Android SDK
       run: |
-        yes | sudo apt-get install -y android-sdk || true
-    
+        mkdir -p $HOME/android-sdk
+        export ANDROID_HOME=$HOME/android-sdk
+        export ANDROID_SDK_ROOT=$HOME/android-sdk
+        export PATH=$PATH:$ANDROID_HOME/tools:$ANDROID_HOME/tools/bin:$ANDROID_HOME/platform-tools
+        yes | sdkmanager --licenses || true
+        sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.1" "ndk;25.2.9519653"
+
+    - name: Set Android Environment Variables
+      run: |
+        echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+        echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
+        echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
+        echo "$HOME/android-sdk/build-tools/33.0.1" >> $GITHUB_PATH
+
     - name: Build with Buildozer
       run: |
         buildozer android debug || echo "Build completed with warnings"
-    
+
     - name: Find APK
       id: find_apk
       run: |
         APK_PATH=$(find . -name "*.apk" | head -n 1)
         echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
         echo "Found APK: $APK_PATH"
-    
+
     - name: Upload APK
       if: steps.find_apk.outputs.apk_path != ''
       uses: actions/upload-artifact@v4
       with:
         name: xenitamusic-apk
         path: ${{ steps.find_apk.outputs.apk_path }}
-
