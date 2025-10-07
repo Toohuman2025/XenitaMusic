@@ -25,15 +25,19 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Install Android Command Line Tools
+    - name: Install Android SDK Tools
       run: |
-        mkdir -p $HOME/Android/cmdline-tools
-        cd $HOME/Android/cmdline-tools
+        sudo apt-get update
+        sudo apt-get install -y unzip wget zip lib32z1 lib32ncurses6 lib32stdc++6
+        mkdir -p $HOME/Android/Sdk
+        cd $HOME/Android/Sdk
         wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
         unzip cmdline-tools.zip
+        mkdir -p cmdline-tools/latest
+        mv cmdline-tools/* cmdline-tools/latest/
         rm cmdline-tools.zip
-        mkdir -p $HOME/Android/Sdk/cmdline-tools
-        mv cmdline-tools $HOME/Android/Sdk/cmdline-tools/latest
+        yes | $HOME/Android/Sdk/cmdline-tools/latest/bin/sdkmanager --licenses
+        $HOME/Android/Sdk/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2" "ndk;25.2.9519653"
 
     - name: Set Android Environment Variables
       run: |
@@ -41,50 +45,15 @@ jobs:
         echo "ANDROID_SDK_ROOT=$HOME/Android/Sdk" >> $GITHUB_ENV
         echo "ANDROID_NDK_HOME=$HOME/Android/Sdk/ndk/25.2.9519653" >> $GITHUB_ENV
         echo "$HOME/Android/Sdk/platform-tools" >> $GITHUB_PATH
-        echo "$HOME/Android/Sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
+        echo "$HOME/Android/Sdk/build-tools/33.0.2" >> $GITHUB_PATH
 
-    - name: Accept Android Licenses & Install SDK/NDK
+    - name: Install Buildozer & Cython
       run: |
-        yes | sdkmanager --licenses || true
-        sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2" "ndk;25.2.9519653"
-
-    - name: Install Buildozer
-      run: |
-        python -m pip install --upgrade pip
+        pip install --upgrade pip
         pip install buildozer
+        pip install cython==0.29.33
 
-    - name: Create Buildozer Spec
-      run: |
-        cat > buildozer.spec << 'EOF'
-        [app]
-        title = Xenita Music Player
-        package.name = xenitamusic
-        package.domain = com.toohuman
-        source.dir = .
-        source.include_exts = py,png,jpg,jpeg,kv,atlas,ttf,mp3,ogg,wav,flac,m4a,opus
-        version = 1.0.0
-        requirements = python3,kivy==2.2.1,android,pyjnius,ffpyplayer
-        orientation = portrait
-        fullscreen = 0
-        android.permissions = INTERNET,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE,ACCESS_NETWORK_STATE,WAKE_LOCK
-        android.minapi = 21
-        android.api = 33
-        android.ndk = 25.2.9519653
-        android.archs = arm64-v8a, armeabi-v7a
-        android.accept_sdk_license = True
-        android.skip_update = True
-        android.sdk_path = $HOME/Android/Sdk
-        android.ndk_path = $HOME/Android/Sdk/ndk/25.2.9519653
-        log_level = 2
-        warn_on_root = 0
-
-        [buildozer]
-        log_level = 2
-        build_dir = ./.buildozer
-        bin_dir = ./bin
-        EOF
-
-    - name: Build APK with Buildozer
+    - name: Build APK
       run: |
         buildozer -v android debug || echo "Build completed with warnings"
 
