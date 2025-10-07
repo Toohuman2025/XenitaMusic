@@ -1,4 +1,3 @@
-
 name: Build APK
 
 on:
@@ -10,30 +9,30 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 120
-    
+
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-    
+
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
-    
+
     - name: Install Java
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
         java-version: '17'
-    
+
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
-    
+
     - name: Accept Android Licenses and Install Tools
       run: |
         yes | sdkmanager --licenses || true
         sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.1" "ndk;25.2.9519653"
-    
+
     - name: Set Android Environment Variables
       run: |
         echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> $GITHUB_ENV
@@ -41,7 +40,7 @@ jobs:
         echo "ANDROID_NDK_HOME=/usr/local/lib/android/sdk/ndk/25.2.9519653" >> $GITHUB_ENV
         echo "/usr/local/lib/android/sdk/platform-tools" >> $GITHUB_PATH
         echo "/usr/local/lib/android/sdk/build-tools/33.0.1" >> $GITHUB_PATH
-    
+
     - name: Install Buildozer Dependencies
       run: |
         sudo apt-get update
@@ -49,13 +48,13 @@ jobs:
         sudo apt-get install -y build-essential libltdl-dev libffi-dev libssl-dev python3-dev
         sudo apt-get install -y zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5
         sudo apt-get install -y cmake automake autoconf libtool pkg-config
-    
+
     - name: Install Buildozer
       run: |
         pip install --upgrade pip
         pip install buildozer
         pip install cython==0.29.33
-    
+
     - name: Create Buildozer Spec
       run: |
         cat > buildozer.spec << 'EOF'
@@ -64,9 +63,9 @@ jobs:
         package.name = xenitamusic
         package.domain = com.toohuman
         source.dir = .
-        source.include_exts = py,png,jpg,jpeg,kv,atlas,ttf,mp3,ogg,wav,flac,m4a
+        source.include_exts = py,png,jpg,jpeg,kv,atlas,ttf,mp3,ogg,wav,flac,m4a,opus
         version = 1.0.0
-        requirements = python3,kivy==2.2.1,android,pyjnius
+        requirements = python3,kivy==2.2.1,android,pyjnius,ffpyplayer
         orientation = portrait
         fullscreen = 0
         android.permissions = INTERNET,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE,ACCESS_NETWORK_STATE,WAKE_LOCK
@@ -86,11 +85,11 @@ jobs:
         build_dir = ./.buildozer
         bin_dir = ./bin
         EOF
-    
+
     - name: Build with Buildozer
       run: |
         buildozer -v android debug
-    
+
     - name: Find APK
       id: find_apk
       run: |
@@ -102,7 +101,7 @@ jobs:
         fi
         echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
         echo "Found APK: $APK_PATH"
-    
+
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
