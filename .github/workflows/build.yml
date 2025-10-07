@@ -1,3 +1,4 @@
+
 name: Build APK
 
 on:
@@ -8,15 +9,30 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     
     steps:
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
+    
+    - name: Install Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+    
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+    
+    - name: Accept Android Licenses
+      run: |
+        yes | sdkmanager --licenses || true
+        sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.1"
     
     - name: Install Buildozer
       run: |
@@ -24,28 +40,25 @@ jobs:
         pip install buildozer
         pip install cython==0.29.33
     
-    - name: Install Android dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y openjdk-17-jdk
-    
-    - name: Accept Android licenses
-      run: |
-        yes | sudo apt-get install -y android-sdk || true
+    - name: Make gradlew executable
+      run: chmod +x gradlew || true
     
     - name: Build with Buildozer
       run: |
-        buildozer android debug || echo "Build completed with warnings"
+        buildozer android debug
     
     - name: Find APK
       id: find_apk
       run: |
         APK_PATH=$(find . -name "*.apk" | head -n 1)
+        if [ -z "$APK_PATH" ]; then
+          echo "No APK found!"
+          exit 1
+        fi
         echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
         echo "Found APK: $APK_PATH"
     
     - name: Upload APK
-      if: steps.find_apk.outputs.apk_path != ''
       uses: actions/upload-artifact@v4
       with:
         name: xenitamusic-apk
