@@ -1,3 +1,4 @@
+
 name: Build APK
 
 on:
@@ -9,45 +10,43 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 120
-
+    
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-
+    
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
-
+    
     - name: Install Java
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
         java-version: '17'
-
+    
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
-
-    - name: Accept Android Licenses and Install Tools
+    
+    - name: Accept Android Licenses
       run: |
         yes | sdkmanager --licenses || true
-        sdkmanager --update
-        sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" "cmdline-tools;latest"
-        echo "✅ Android SDK, Build-Tools y AIDL instalados correctamente."
-
+        sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.1" "cmdline-tools;latest"
+    
     - name: Install Buildozer
       run: |
         pip install --upgrade pip
         pip install buildozer
         pip install cython==0.29.33
-
+    
     - name: Make gradlew executable
       run: chmod +x gradlew || true
-
+    
     - name: Build with Buildozer
       run: |
         buildozer android debug
-
+    
     - name: Find APK
       id: find_apk
       run: |
@@ -58,7 +57,7 @@ jobs:
         fi
         echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
         echo "Found APK: $APK_PATH"
-
+    
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
