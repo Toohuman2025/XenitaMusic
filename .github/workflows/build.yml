@@ -86,15 +86,13 @@ jobs:
 
     - name: Build APK
       run: |
-        buildozer -v android debug || echo "Build completed with warnings"
+        buildozer -v android debug || exit 1
 
-    - name: Find APK
-      id: find_apk
+    - name: Ensure APK Exists
       run: |
         APK_PATH=$(find . -name "*.apk" | head -n 1)
         if [ -z "$APK_PATH" ]; then
-          echo "No APK found!"
-          ls -R bin/ || echo "No bin directory"
+          echo "Error: No APK was built!"
           exit 1
         fi
         echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
@@ -104,4 +102,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: xenitamusic-apk
-        path: ${{ steps.find_apk.outputs.apk_path }}
+        path: ${{ steps.Ensure_APK_Exists.outputs.apk_path }}
